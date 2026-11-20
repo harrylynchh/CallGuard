@@ -8,6 +8,11 @@ async fn main() -> Result<()> {
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
 
+    // Deepgram is reached over wss://, so TLS needs a crypto backend.
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .map_err(|_| anyhow::anyhow!("a TLS crypto provider was already installed"))?;
+
     let config = Config::from_env()?;
     if config.skip_twilio_signature {
         tracing::warn!(
