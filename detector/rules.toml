@@ -1,0 +1,73 @@
+# CallGuard scam-phrase rules.
+#
+# Each rule adds its weight to the call's risk score ONCE per call; later
+# matches are still shown as flags. Only the caller's speech is scored.
+#
+#   phrases  - literal phrases, case-insensitive, matched on word boundaries
+#              (any run of whitespace matches a space)
+#   patterns - regular expressions (Rust `regex` syntax), also case-insensitive
+#              and wrapped in word boundaries
+
+[thresholds]
+# Low < medium <= Medium < high <= High
+medium = 3
+high = 6
+
+[[rules]]
+id = "government_impersonation"
+description = "Claims to be the IRS, Social Security or law enforcement"
+weight = 3
+phrases = [
+  "IRS", "Internal Revenue Service", "Social Security", "Social Security Administration",
+  "warrant", "arrest", "arrested", "police", "sheriff", "federal agent", "U.S. Marshal",
+]
+patterns = ['I\.\s?R\.\s?S']
+
+[[rules]]
+id = "unusual_payment"
+description = "Asks for payment by gift card, crypto or wire"
+weight = 4
+phrases = [
+  "Google Play", "Apple card", "iTunes card", "bitcoin", "crypto ATM", "bitcoin ATM",
+  "cryptocurrency", "wire transfer", "wire the money", "Western Union", "MoneyGram",
+]
+patterns = [
+  'gift\s*cards?',
+  '(?:apple|itunes|google\s+play|steam|amazon|target)\s+(?:gift\s+)?cards?',
+]
+
+[[rules]]
+id = "urgency"
+description = "Pressure to act immediately"
+weight = 1
+phrases = ["right now", "today", "immediately", "right away", "within the hour", "as soon as possible"]
+
+[[rules]]
+id = "secrecy"
+description = "Tells the victim to keep the call secret or stay on the line"
+weight = 2
+phrases = ["stay on the line", "keep this between us", "confidential"]
+patterns = [
+  "do(?:n['’]?t| not) tell",
+  "do(?:n['’]?t| not) hang up",
+  "do(?:n['’]?t| not) talk to",
+]
+
+[[rules]]
+id = "tech_support"
+description = "Tech-support scam: viruses, hacking, remote access tools"
+weight = 3
+phrases = [
+  "virus", "hacked", "hackers", "malware", "remote access", "AnyDesk", "any desk",
+  "TeamViewer", "team viewer", "UltraViewer", "Microsoft security", "your computer is infected",
+]
+
+[[rules]]
+id = "sensitive_info"
+description = "Asks for a Social Security number or bank details"
+weight = 3
+phrases = ["SSN", "routing number", "account number", "credit card number", "PIN number"]
+patterns = [
+  'social\s+security\s+number',
+  'bank\s+account\s+(?:number|information|info|details)',
+]
