@@ -2,6 +2,8 @@
 
 use anyhow::{Context, Result, bail};
 
+pub const DEFAULT_DEEPGRAM_URL: &str = "wss://api.deepgram.com/v1/listen";
+
 #[derive(Debug, Clone)]
 pub struct Config {
     /// Used to verify `X-Twilio-Signature`. Empty only when signatures are skipped.
@@ -12,6 +14,8 @@ pub struct Config {
     pub user_phone: String,
     /// Optional: without it calls still connect, they just aren't transcribed.
     pub deepgram_api_key: Option<String>,
+    /// Deepgram live endpoint. Only overridden in tests (mock server).
+    pub deepgram_url: String,
     /// Public base URL (e.g. `https://callguard.example.com`), no trailing slash.
     pub public_url: String,
     pub port: u16,
@@ -56,6 +60,7 @@ impl Config {
             twilio_number: require("TWILIO_NUMBER")?,
             user_phone: require("USER_PHONE")?,
             deepgram_api_key: get("DEEPGRAM_API_KEY"),
+            deepgram_url: get("DEEPGRAM_URL").unwrap_or_else(|| DEFAULT_DEEPGRAM_URL.to_string()),
             public_url: require("PUBLIC_URL")?.trim_end_matches('/').to_string(),
             port,
             skip_twilio_signature,

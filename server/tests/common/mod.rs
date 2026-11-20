@@ -1,6 +1,8 @@
 //! Shared helpers for the server's integration tests.
 #![allow(dead_code)]
 
+pub mod mock_deepgram;
+
 use axum::{
     Router,
     body::Body,

@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 
+use detector::Speaker;
 use serde::{Deserialize, Deserializer};
 
 #[derive(Debug, Deserialize)]
@@ -55,6 +56,15 @@ pub struct MediaInfo {
 pub enum Track {
     Inbound,
     Outbound,
+}
+
+impl Track {
+    pub fn speaker(self) -> Speaker {
+        match self {
+            Track::Inbound => Speaker::Caller,
+            Track::Outbound => Speaker::User,
+        }
+    }
 }
 
 fn u64_from_string_or_number<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u64, D::Error> {

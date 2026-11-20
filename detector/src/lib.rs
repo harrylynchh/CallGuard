@@ -1,1 +1,5 @@
-//! Rules-based scam phrase detector (built in step 5).
+//! Rules-based scam phrase detector. Pure library: no networking, no async.
+
+mod speaker;
+
+pub use speaker::Speaker;

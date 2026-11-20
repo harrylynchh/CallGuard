@@ -3,6 +3,7 @@
 
 pub mod audio;
 pub mod config;
+pub mod deepgram;
 pub mod media;
 pub mod routes;
 pub mod state;
