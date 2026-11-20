@@ -11,7 +11,11 @@ use super::{
     messages::{StartInfo, Track},
     transcriber::Transcriber,
 };
-use crate::{deepgram::messages::DeepgramResult, state::AppState};
+use crate::{
+    calls::{CallAnalyzer, CallSource, Transcript},
+    deepgram::messages::DeepgramResult,
+    state::AppState,
+};
 
 /// About 10 s of audio before the WebSocket reader waits on us.
 const AUDIO_QUEUE: usize = 1000;
@@ -21,7 +25,6 @@ const FLUSH_TIMEOUT: Duration = Duration::from_secs(3);
 /// One 20 ms chunk of μ-law audio from one track. Held in memory only.
 pub struct AudioFrame {
     pub track: Track,
-    pub timestamp_ms: u64,
     pub received_at: Instant,
     pub bytes: Vec<u8>,
 }
@@ -34,9 +37,9 @@ pub struct CallSession {
 impl CallSession {
     pub fn spawn(state: AppState, start: &StartInfo) -> Self {
         let (audio_tx, audio_rx) = mpsc::channel(AUDIO_QUEUE);
-        let call_sid = start.call_sid.clone();
+        let (call_sid, from) = (start.call_sid.clone(), start.from().to_string());
         tokio::spawn(async move {
-            let task = CallTask::start(state, call_sid).await;
+            let task = CallTask::start(state, call_sid, from).await;
             task.run(audio_rx).await;
         });
         Self { audio_tx }
@@ -58,17 +61,21 @@ struct TrackState {
 struct CallTask {
     call_sid: String,
     transcriber: Option<Transcriber>,
+    analyzer: CallAnalyzer,
     caller: TrackState,
     user: TrackState,
 }
 
 impl CallTask {
-    async fn start(state: AppState, call_sid: String) -> Self {
+    async fn start(state: AppState, call_sid: String, from: String) -> Self {
         tracing::info!(%call_sid, "call started");
+        let record = state.calls.create(&call_sid, &from, CallSource::Live);
+        let analyzer = CallAnalyzer::new(record, state.rules.clone());
         let transcriber = Transcriber::start(&state.config, &call_sid).await;
         Self {
             call_sid,
             transcriber,
+            analyzer,
             caller: TrackState::default(),
             user: TrackState::default(),
         }
@@ -100,9 +107,27 @@ impl CallTask {
     fn on_result(&mut self, speaker: Speaker, result: DeepgramResult) {
         if result.is_final {
             tracing::info!(call_sid = %self.call_sid, ?speaker, text = %result.text, "transcript");
-        } else {
-            tracing::debug!(call_sid = %self.call_sid, ?speaker, text = %result.text, "interim transcript");
         }
+        let word_ends = self.word_arrivals(speaker, &result);
+        self.analyzer.handle(Transcript {
+            speaker,
+            text: result.text,
+            is_final: result.is_final,
+            word_ends,
+        });
+    }
+
+    /// When the audio for the end of each word arrived from Twilio.
+    fn word_arrivals(&mut self, speaker: Speaker, result: &DeepgramResult) -> Vec<Instant> {
+        let clock = &self.track(speaker).clock;
+        if result.words.is_empty() {
+            return clock.arrival_of(result.end()).into_iter().collect();
+        }
+        result
+            .words
+            .iter()
+            .filter_map(|word| clock.arrival_of(word.end))
+            .collect()
     }
 
     /// Lets Deepgram flush its last results, then logs a summary. All audio
@@ -125,6 +150,7 @@ impl CallTask {
             outbound_frames = self.user.frames,
             "call ended"
         );
+        self.analyzer.finish();
     }
 
     fn track(&mut self, speaker: Speaker) -> &mut TrackState {

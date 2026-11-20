@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CallGuard · Live call</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --panel: #ffffff; --ink: #16181d; --muted: #5d6270; --line: #e2ded4;
+    --caller: #8a3b12; --caller-bg: #fdf0e6; --user: #1d4e89; --user-bg: #e8f0fb;
+    --low: #1f7a3f; --medium: #b36b00; --high: #c0152f; --mark: #ffe066;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 20px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; }
+  header a { color: var(--muted); text-decoration: none; font-size: 1rem; }
+  header h1 { margin: 0; font-size: 1.6rem; flex: 1; }
+  .status { font-size: 1rem; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+  .dot { width: .8rem; height: .8rem; border-radius: 50%; background: var(--high); animation: pulse 1.2s infinite; }
+  .status.ended .dot { background: var(--muted); animation: none; }
+  @keyframes pulse { 50% { opacity: .25; } }
+
+  #risk { margin: 0 1.5rem; padding: 1.2rem 1.8rem; border-radius: 14px; color: #fff;
+          display: flex; align-items: baseline; gap: 1.5rem; background: var(--low);
+          transition: background .4s; }
+  #risk .label { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .1em; opacity: .9; }
+  #risk .level { font-size: 3.6rem; font-weight: 800; line-height: 1; }
+  #risk .score { margin-left: auto; font-size: 1.4rem; opacity: .9; }
+  #risk.Medium { background: var(--medium); }
+  #risk.High { background: var(--high); }
+  #risk.bump { animation: bump .5s; }
+  @keyframes bump { 40% { transform: scale(1.02); } }
+
+  main { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; padding: 1.5rem; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.2rem; min-height: 50vh; }
+  h2 { margin: 0 0 1rem; font-size: 1rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+
+  #transcript { display: flex; flex-direction: column; gap: .8rem; max-height: 65vh; overflow-y: auto; }
+  .line { max-width: 85%; padding: .7rem 1rem; border-radius: 12px; font-size: 1.5rem; }
+  .line .who { display: block; font-size: .85rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+  .line.caller { align-self: flex-start; background: var(--caller-bg); border-left: 6px solid var(--caller); }
+  .line.caller .who { color: var(--caller); }
+  .line.user { align-self: flex-end; background: var(--user-bg); border-right: 6px solid var(--user); text-align: right; }
+  .line.user .who { color: var(--user); }
+  .line.interim .text { color: var(--muted); font-style: italic; }
+  mark { background: var(--mark); color: inherit; padding: 0 .15em; border-radius: 4px; font-weight: 700; }
+
+  #flags { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .7rem; }
+  #flags li { border-left: 5px solid var(--high); padding: .5rem .8rem; background: #fff5f6; border-radius: 8px; }
+  #flags li.repeat { border-left-color: var(--line); background: #faf9f6; }
+  #flags .phrase { font-size: 1.3rem; font-weight: 700; }
+  #flags .meta { font-size: .9rem; color: var(--muted); }
+  .empty { color: var(--muted); font-style: italic; font-size: 1rem; }
+
+  @media (max-width: 800px) {
+    header { flex-wrap: wrap; padding: .8rem 1rem; gap: .4rem 1rem; }
+    header h1 { order: 3; flex-basis: 100%; font-size: 1.25rem; }
+    main { grid-template-columns: 1fr; padding: 1rem; }
+    #risk { margin: 0 1rem; flex-wrap: wrap; gap: .2rem 1rem; padding: 1rem 1.2rem; }
+    #risk .label { flex-basis: 100%; font-size: .9rem; }
+    #risk .level { font-size: 2.6rem; }
+    #risk .score { font-size: 1.1rem; }
+    .line { font-size: 1.2rem; max-width: 95%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">← All calls</a>
+  <h1 id="title">Call</h1>
+  <div class="status" id="status"><span class="dot"></span><span id="status-text">Live</span></div>
+</header>
+
+<div id="risk" class="Low">
+  <span class="label">Scam risk</span>
+  <span class="level" id="risk-level">LOW</span>
+  <span class="score" id="risk-score">score 0</span>
+</div>
+
+<main>
+  <section>
+    <h2>Transcript</h2>
+    <div id="transcript"><p class="empty" id="no-transcript">Waiting for speech…</p></div>
+  </section>
+  <section>
+    <h2>Flags</h2>
+    <ul id="flags"></ul>
+    <p class="empty" id="no-flags">No scam phrases detected.</p>
+  </section>
+</main>
+
+<script>
+  const callId = decodeURIComponent(location.pathname.split("/")[2]);
+  const $ = (id) => document.getElementById(id);
+  const pending = { caller: null, user: null }; // interim line per speaker
+
+  fetch(`/api/calls/${encodeURIComponent(callId)}`)
+    .then((r) => r.ok ? r.json() : null)
+    .then((call) => {
+      if (!call) return;
+      $("title").textContent = call.source === "replay" ? call.from.replace(/_/g, " ") : `Call from ${call.from}`;
+    });
+
+  function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function highlight(text, phrases) {
+    let html = escapeHtml(text);
+    const unique = [...new Set(phrases.map((p) => escapeHtml(p)))].sort((a, b) => b.length - a.length);
+    if (unique.length === 0) return html;
+    const pattern = new RegExp(unique.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "gi");
+    return html.replace(pattern, (m) => `<mark>${m}</mark>`);
+  }
+
+  function onTranscript({ speaker, text, final, highlights }) {
+    $("no-transcript")?.remove();
+    let line = pending[speaker];
+    if (!line) {
+      line = document.createElement("div");
+      line.className = `line ${speaker}`;
+      line.innerHTML = `<span class="who">${speaker === "caller" ? "Caller" : "User"}</span><span class="text"></span>`;
+      $("transcript").appendChild(line);
+      pending[speaker] = line;
+    }
+    line.classList.toggle("interim", !final);
+    line.querySelector(".text").innerHTML = highlight(text, highlights);
+    if (final) pending[speaker] = null;
+    $("transcript").scrollTop = $("transcript").scrollHeight;
+  }
+
+  function onFlag(flag) {
+    $("no-flags").hidden = true;
+    const item = document.createElement("li");
+    if (flag.added === 0) item.classList.add("repeat");
+    const points = flag.added > 0 ? `+${flag.added}` : "already counted";
+    const latency = flag.latency_ms == null ? "" : ` · ${flag.latency_ms} ms`;
+    item.innerHTML = `<div class="phrase">“${escapeHtml(flag.phrase)}”</div>
+      <div class="meta">${escapeHtml(flag.description)} · ${points}${latency}</div>`;
+    $("flags").prepend(item);
+  }
+
+  function onRisk({ level, score }) {
+    const risk = $("risk");
+    if (!risk.classList.contains(level)) {
+      risk.className = level;
+      void risk.offsetWidth; // restart the animation
+      risk.classList.add("bump");
+    }
+    $("risk-level").textContent = level.toUpperCase();
+    $("risk-score").textContent = `score ${score}`;
+  }
+
+  function onEnded(source) {
+    $("status").classList.add("ended");
+    $("status-text").textContent = "Call ended";
+    source.close();
+  }
+
+  const source = new EventSource(`/calls/${encodeURIComponent(callId)}/events`);
+  const on = (name, handler) => source.addEventListener(name, (e) => handler(JSON.parse(e.data)));
+  on("transcript", onTranscript);
+  on("flag", onFlag);
+  on("risk", onRisk);
+  source.addEventListener("ended", () => onEnded(source));
+</script>
+</body>
+</html>

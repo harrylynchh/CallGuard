@@ -43,7 +43,6 @@ fn decode_frame(media: MediaInfo) -> Option<AudioFrame> {
     let bytes = BASE64.decode(media.payload).ok()?;
     Some(AudioFrame {
         track: media.track,
-        timestamp_ms: media.timestamp,
         received_at: Instant::now(),
         bytes,
     })

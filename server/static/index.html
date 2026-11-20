@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CallGuard</title>
+<style>
+  :root { --bg: #f6f4ef; --panel: #fff; --ink: #16181d; --muted: #5d6270; --line: #e2ded4;
+          --low: #1f7a3f; --medium: #b36b00; --high: #c0152f; --accent: #1d4e89; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 18px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem; }
+  h1 { margin: 0; font-size: 2.2rem; }
+  .tagline { color: var(--muted); margin: .2rem 0 1.5rem; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.2rem; margin-bottom: 1.5rem; }
+  h2 { margin: 0 0 .8rem; font-size: .95rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  #scripts { display: flex; flex-wrap: wrap; gap: .6rem; }
+  button { font: inherit; border: 1px solid var(--accent); color: var(--accent); background: #fff;
+           border-radius: 999px; padding: .4rem 1rem; cursor: pointer; }
+  button:hover { background: var(--accent); color: #fff; }
+  #calls { list-style: none; margin: 0; padding: 0; }
+  #calls a { display: flex; align-items: center; gap: 1rem; padding: .8rem .4rem; border-top: 1px solid var(--line);
+             color: inherit; text-decoration: none; }
+  #calls li:first-child a { border-top: 0; }
+  #calls a:hover { background: var(--bg); }
+  .from { font-weight: 700; flex: 1; overflow-wrap: anywhere; }
+  .tag { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .risk { color: #fff; border-radius: 6px; padding: .1rem .6rem; font-weight: 700; font-size: .9rem; min-width: 5.5rem; text-align: center; }
+  .risk.Low { background: var(--low); } .risk.Medium { background: var(--medium); } .risk.High { background: var(--high); }
+  .live { color: var(--high); font-weight: 700; }
+  .empty { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CallGuard</h1>
+  <p class="tagline">Live scam screening for incoming calls.</p>
+
+  <section>
+    <h2>Replay a scripted call</h2>
+    <div id="scripts"><span class="empty">Loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Calls</h2>
+    <ul id="calls"></ul>
+    <p class="empty" id="no-calls">No calls yet. Call the CallGuard number or start a replay.</p>
+  </section>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const escapeHtml = (t) => t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const prettyName = (name) => name.replace(/[_-]+/g, " ");
+
+  async function startReplay(script) {
+    const response = await fetch(`/replay?script=${encodeURIComponent(script)}`, { method: "POST" });
+    if (response.ok) location.href = (await response.json()).url;
+    else alert(await response.text());
+  }
+
+  async function loadScripts() {
+    const scripts = await (await fetch("/api/scripts")).json();
+    $("scripts").replaceChildren(...scripts.map((name) => {
+      const button = document.createElement("button");
+      button.textContent = prettyName(name);
+      button.onclick = () => startReplay(name);
+      return button;
+    }));
+  }
+
+  function callRow(call) {
+    const started = new Date(call.started_at_ms).toLocaleTimeString();
+    const status = call.ended ? started : `<span class="live">● Live</span>`;
+    return `<li><a href="/calls/${encodeURIComponent(call.id)}">
+      <span class="from">${escapeHtml(call.from)}</span>
+      <span class="tag">${call.source}</span>
+      <span class="tag">${status}</span>
+      <span class="risk ${call.risk.level}">${call.risk.level} · ${call.risk.score}</span>
+    </a></li>`;
+  }
+
+  async function refreshCalls() {
+    try {
+      const calls = await (await fetch("/api/calls")).json();
+      $("calls").innerHTML = calls.map(callRow).join("");
+      $("no-calls").hidden = calls.length > 0;
+    } catch { /* server restarting; try again next tick */ }
+  }
+
+  loadScripts();
+  refreshCalls();
+  setInterval(refreshCalls, 2000);
+</script>
+</body>
+</html>
