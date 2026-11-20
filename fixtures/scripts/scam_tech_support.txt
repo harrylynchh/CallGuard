@@ -1,0 +1,11 @@
+CALLER: Hi, this is Kevin from the Microsoft security department. We detected a virus on your computer.
+USER: A virus? My computer seems fine.
+CALLER: Your computer has been hacked and someone is accessing your bank account right now. We need to act immediately.
+USER: Oh no. What should I do?
+CALLER: Please go to your computer and download a program called AnyDesk so I can get remote access and remove the hackers.
+USER: Okay, I'm turning it on now.
+CALLER: Good. To secure your account we also need you to verify your Social Security number and your bank account number.
+USER: I'm not sure I should give that out.
+CALLER: It is completely safe, I am a certified technician. After that you will need to pay a five hundred dollar security fee with Apple gift cards.
+USER: Why gift cards?
+CALLER: It is the only payment our system accepts. Please don't hang up, and don't tell your bank, they may be involved.

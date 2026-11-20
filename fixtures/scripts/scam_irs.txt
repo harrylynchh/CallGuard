@@ -1,0 +1,11 @@
+CALLER: Hello, this is Officer Daniel Brooks with the Internal Revenue Service, badge number 4 4 7 1.
+USER: Oh. Hello?
+CALLER: Ma'am, I'm calling because there is an active arrest warrant in your name for unpaid back taxes.
+USER: An arrest warrant? I don't understand, I always pay my taxes.
+CALLER: Our records show you owe four thousand two hundred dollars. If it is not paid today, local police will come to your home.
+USER: What do I need to do?
+CALLER: You need to resolve this right now. Go to the nearest store and buy Google Play gift cards for the full amount.
+USER: Gift cards? For the IRS?
+CALLER: Yes, it is the fastest way to stop the warrant. Do not hang up, and do not tell anyone about this call, it is a confidential federal matter.
+USER: Can I call my son first?
+CALLER: No ma'am, if you hang up the warrant will be executed immediately. Stay on the line with me.

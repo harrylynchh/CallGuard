@@ -1,0 +1,11 @@
+CALLER: Hi, this is Maria calling from Riverside Pharmacy. Is this Margaret?
+USER: Yes, this is Margaret.
+CALLER: Great. I'm calling to let you know your prescription refill is ready for pickup.
+USER: Oh good, thank you. Is it the blood pressure one?
+CALLER: Yes, the lisinopril. Your copay is ten dollars, and you can pay when you pick it up at the counter.
+USER: Can I come by today?
+CALLER: Of course, we're open until eight tonight. If it's easier, we also offer free delivery tomorrow.
+USER: I'll come by this afternoon.
+CALLER: Perfect. Just bring your insurance card in case anything has changed with your account.
+USER: Will do. Thanks so much for calling.
+CALLER: You're welcome, Margaret. Have a great day.
