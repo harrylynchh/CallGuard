@@ -70,3 +70,11 @@ pub async fn send(app: Router, request: Request<Body>) -> (u16, String) {
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
     (status, String::from_utf8(bytes.to_vec()).unwrap())
 }
+
+/// Runs the app on a random local port and returns its address.
+pub async fn spawn_server(app: Router) -> std::net::SocketAddr {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    addr
+}

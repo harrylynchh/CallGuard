@@ -1,5 +1,6 @@
 //! HTTP routing.
 
+mod media;
 mod voice;
 
 use axum::{
@@ -13,6 +14,7 @@ pub fn router(state: AppState) -> Router {
     let twilio = Router::new()
         .route("/voice", post(voice::voice))
         .route("/whisper", post(voice::whisper).get(voice::whisper))
+        .route("/media", get(media::media))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             require_twilio_signature,
